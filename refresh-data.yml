@@ -1,0 +1,54 @@
+name: Refresh field locations
+
+on:
+  schedule:
+    # Runs every 5 minutes, every day, in UTC.
+    # The script below checks the actual UK local time and day, and
+    # exits immediately outside Mon-Fri 06:00-19:00 (Europe/London),
+    # so this works correctly across the BST/GMT clock change without
+    # needing the cron line itself edited twice a year.
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}   # lets you trigger a manual refresh from the Actions tab too
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check working window (Mon-Fri 06:00-19:00 Europe/London)
+        id: window
+        run: |
+          now_day=$(TZ=Europe/London date +%u)   # 1=Mon .. 7=Sun
+          now_hour=$(TZ=Europe/London date +%H)
+          echo "UK local time: $(TZ=Europe/London date)"
+          if [ "$now_day" -ge 1 ] && [ "$now_day" -le 5 ] && \
+             [ "$now_hour" -ge 6 ] && [ "$now_hour" -lt 19 ]; then
+            echo "in_window=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "in_window=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repo
+        if: steps.window.outputs.in_window == 'true'
+        uses: actions/checkout@v4
+
+      - name: Fetch latest locations from NetSuite RESTlet
+        if: steps.window.outputs.in_window == 'true'
+        env:
+          NETSUITE_RESTLET_URL: ${{ secrets.NETSUITE_RESTLET_URL }}
+          NETSUITE_CONSUMER_KEY: ${{ secrets.NETSUITE_CONSUMER_KEY }}
+          NETSUITE_CONSUMER_SECRET: ${{ secrets.NETSUITE_CONSUMER_SECRET }}
+          NETSUITE_TOKEN_ID: ${{ secrets.NETSUITE_TOKEN_ID }}
+          NETSUITE_TOKEN_SECRET: ${{ secrets.NETSUITE_TOKEN_SECRET }}
+          NETSUITE_ACCOUNT_ID: ${{ secrets.NETSUITE_ACCOUNT_ID }}
+        run: |
+          pip install requests requests-oauthlib --quiet
+          python3 scripts/fetch_and_write.py
+
+      - name: Commit updated data.json
+        if: steps.window.outputs.in_window == 'true'
+        run: |
+          git config user.name "fg-locations-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data.json
+          git diff --quiet --cached || git commit -m "Auto-refresh field locations $(TZ=Europe/London date '+%Y-%m-%d %H:%M')"
+          git push
