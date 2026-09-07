@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FreshGround — Field Team Locations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal: #5DCAA5;
+    --teal-dark: #3E9E7E;
+    --beige: #C4A27F;
+    --ink: #1F2A28;
+    --paper: #FFFFFF;
+    --mist: #F3F6F5;
+    --line: #E1E8E6;
+    --red: #E2574C;
+    --red-soft: #FBEAE8;
+    --green: #2FAE7A;
+    --green-soft: #E7F7F0;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--mist);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--ink);
+    overflow: hidden;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .brand-mark {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--teal);
+    display: inline-block;
+    margin-right: 2px;
+    box-shadow: 0 0 0 4px var(--green-soft);
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 22px;
+    margin: 0;
+    letter-spacing: 0.2px;
+  }
+
+  .subtitle {
+    font-size: 12.5px;
+    color: #6B7A76;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  #clock {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--mist);
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #4A5A56;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .dot.green { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+  .dot.red { background: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
+
+  #map-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+
+  #map { height: 100%; width: 100%; background: var(--mist); }
+
+  /* Marker label pills */
+  .fg-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translateY(4px);
+  }
+
+  .fg-pin {
+    width: 16px;
+    height: 16px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+
+  .fg-pin.green { background: var(--green); }
+  .fg-pin.red { background: var(--red); }
+
+  .fg-label {
+    margin-top: 6px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 2px 5px rgba(20,40,35,0.08);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .fg-label .time {
+    font-family: 'DM Mono', monospace;
+    font-weight: 400;
+    color: #7C8B87;
+    font-size: 10.5px;
+  }
+
+  .fg-label.red { border-color: #F3C7C2; }
+  .fg-label.green { border-color: #BFE9D6; }
+
+  .leaflet-popup-content-wrapper {
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .leaflet-popup-content { margin: 12px 14px; font-size: 13px; }
+  .leaflet-popup-content b { font-family: 'Playfair Display', serif; font-size: 15px; }
+
+  footer {
+    padding: 8px 28px;
+    background: var(--paper);
+    border-top: 1px solid var(--line);
+    font-size: 11px;
+    color: #93A19D;
+    display: flex;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <div>
+        <h1>FreshGround Field Team</h1>
+        <div class="subtitle">Live location map</div>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="dot green"></span> Active — pinged within 60 min</div>
+      <div class="legend-item"><span class="dot red"></span> Stale — no ping in 60+ min</div>
+    </div>
+    <div id="clock">— : —</div>
+  </header>
+
+  <div id="map-wrap">
+    <div id="map"></div>
+  </div>
+
+  <footer>
+    <span>Source: NetSuite saved search #2876 — Employee Geolocation</span>
+    <span id="asof">Snapshot as of —</span>
+  </footer>
+</div>
+
+<script>
+  // ---- Live data, loaded from data.json (updated automatically by GitHub Action) ----
+  const STALE_MINUTES = 60;
+  const DATA_POLL_MS = 60 * 1000; // re-check data.json every 60s
+
+  let map = null;
+  let markers = [];
+
+  function initMap() {
+    map = L.map('map', { zoomControl: true, attributionControl: true }).setView([52.3, -0.9], 6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+    }).addTo(map);
+  }
+
+  function minutesAgo(isoOrDateString, now) {
+    return (now - new Date(isoOrDateString)) / 60000;
+  }
+
+  function renderEngineers(payload) {
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+
+    const now = new Date();
+    const bounds = [];
+
+    (payload.engineers || []).forEach(function (e) {
+      const mins = minutesAgo(e.date, now);
+      const status = mins <= STALE_MINUTES ? 'green' : 'red';
+      const timeLabel = new Date(e.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+      const icon = L.divIcon({
+        className: '',
+        html: `
+          <div class="fg-marker">
+            <div class="fg-pin ${status}"></div>
+            <div class="fg-label ${status}">
+              ${e.name}
+              <span class="time">${timeLabel}</span>
+            </div>
+          </div>`,
+        iconSize: [0, 0],
+        iconAnchor: [8, 16]
+      });
+
+      const marker = L.marker([parseFloat(e.lat), parseFloat(e.lon)], { icon: icon }).addTo(map);
+      marker.bindPopup(
+        `<b>${e.name}</b><br>Last ping: ${timeLabel}<br>Status: ${status === 'green' ? 'Active' : 'Stale (' + Math.round(mins) + ' min ago)'}`
+      );
+      markers.push(marker);
+      bounds.push([parseFloat(e.lat), parseFloat(e.lon)]);
+    });
+
+    if (bounds.length) {
+      map.fitBounds(bounds, { padding: [60, 60] });
+    }
+
+    const generated = payload.generatedAt ? new Date(payload.generatedAt) : now;
+    document.getElementById('asof').textContent =
+      'Data generated ' + generated.toLocaleString('en-GB') +
+      ' — ' + (payload.engineers || []).length + ' engineers reporting — auto-refreshes every minute, Mon-Fri 06:00-19:00';
+  }
+
+  async function loadData() {
+    try {
+      // cache-busting query string so the browser/signage box never serves a stale cached copy
+      const resp = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const payload = await resp.json();
+      renderEngineers(payload);
+    } catch (err) {
+      document.getElementById('asof').textContent = 'Could not load data.json — showing last known layout';
+      console.error('Failed to load data.json', err);
+    }
+  }
+
+  function updateClock() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hh}:${mm}:${ss}`;
+  }
+
+  initMap();
+  loadData();
+  updateClock();
+  setInterval(updateClock, 1000);
+  setInterval(loadData, DATA_POLL_MS);
+</script>
+</body>
+</html>
