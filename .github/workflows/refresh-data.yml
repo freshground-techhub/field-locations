@@ -2,12 +2,19 @@ name: Refresh field locations
 
 on:
   schedule:
-    # Runs every 5 minutes, every day, in UTC.
+    # Runs every 15 minutes, every day, in UTC.
     # The script below checks the actual UK local time and day, and
     # exits immediately outside Mon-Fri 06:00-19:00 (Europe/London),
     # so this works correctly across the BST/GMT clock change without
     # needing the cron line itself edited twice a year.
-    - cron: '*/5 * * * *'
+    #
+    # Note: GitHub's own scheduler does not guarantee exact timing for
+    # cron-triggered workflows, especially at high frequency (every 5 min
+    # was seeing multi-hour gaps in practice). 15 minutes is a more
+    # realistic interval for GitHub to actually honour consistently,
+    # though occasional delays of a few minutes can still happen,
+    # particularly during platform-wide busy periods.
+    - cron: '*/15 * * * *'
   workflow_dispatch: {}   # lets you trigger a manual refresh from the Actions tab too
 
 jobs:
